@@ -17,7 +17,8 @@ def on_failure_callback(context: dict[str, Any]):
 
     if ti:
         logger.error(
-            f"Task {ti.task_id} failed in DAG {ti.dag_id} " f"with exception: {exception}"
+            f"Task {ti.task_id} failed in DAG {ti.dag_id} "
+            f"with exception: {exception}"
         )
 
     # Here we would normally inject a session to update the pipeline_runs table in Postgres.

@@ -179,4 +179,4 @@ def get_settings() -> Settings:
         >>> settings.environment
         'development'
     """
-    return Settings() # type: ignore[call-arg]
+    return Settings()  # type: ignore[call-arg]

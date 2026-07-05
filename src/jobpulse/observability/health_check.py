@@ -216,8 +216,8 @@ class DatabaseChecker:
                     "database": str(self._engine.url.database),
                     "jobs_table_exists": jobs_table_exists,
                     "active_connections": active_connections,
-                    "pool_size": self._engine.pool.size(), # type: ignore[attr-defined]
-                    "checked_out": self._engine.pool.checkedout(), # type: ignore[attr-defined]
+                    "pool_size": self._engine.pool.size(),  # type: ignore[attr-defined]
+                    "checked_out": self._engine.pool.checkedout(),  # type: ignore[attr-defined]
                 },
             )
         except Exception as exc:

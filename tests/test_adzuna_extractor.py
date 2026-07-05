@@ -12,17 +12,23 @@ def test_adzuna_extractor_init(monkeypatch):
     assert extractor.country == "us"
     assert extractor.results_per_page == 50
 
+
 def test_adzuna_extractor_validate_source_success():
     extractor = AdzunaExtractor(app_id="id", app_key="key")
-    with patch("src.jobpulse.extraction.api_extractor.ApiExtractor.validate_source", return_value=True):
+    with patch(
+        "src.jobpulse.extraction.api_extractor.ApiExtractor.validate_source",
+        return_value=True,
+    ):
         assert extractor.validate_source() is True
+
 
 def test_adzuna_extractor_validate_source_missing_creds():
     extractor = AdzunaExtractor(app_id=None, app_key=None)
     assert extractor.validate_source() is False
-    
+
     extractor2 = AdzunaExtractor(app_id="id", app_key=None)
     assert extractor2.validate_source() is False
+
 
 def test_adzuna_extractor_build_request_params():
     extractor = AdzunaExtractor(app_id="id", app_key="key", results_per_page=10)
@@ -32,6 +38,7 @@ def test_adzuna_extractor_build_request_params():
     assert params["results_per_page"] == 10
     assert params["_page"] == 2
 
+
 @patch("src.jobpulse.extraction.adzuna_extractor.AdzunaExtractor._get_session")
 def test_adzuna_extractor_fetch_page_success(mock_get_session):
     mock_session = MagicMock()
@@ -40,22 +47,23 @@ def test_adzuna_extractor_fetch_page_success(mock_get_session):
     mock_response.json.return_value = {"results": [{"id": 1}]}
     mock_session.get.return_value = mock_response
     mock_get_session.return_value = mock_session
-    
+
     extractor = AdzunaExtractor(app_id="id", app_key="key")
     result = extractor._fetch_page({"_page": 2, "other": "val"})
     assert result == {"results": [{"id": 1}]}
     mock_session.get.assert_called_once_with(
         "https://api.adzuna.com/v1/api/jobs/us/search/2",
         params={"other": "val"},
-        timeout=30.0
+        timeout=30.0,
     )
+
 
 @patch("src.jobpulse.extraction.adzuna_extractor.AdzunaExtractor._get_session")
 def test_adzuna_extractor_fetch_page_request_exception(mock_get_session):
     mock_session = MagicMock()
     mock_session.get.side_effect = Exception("Network error")
     mock_get_session.return_value = mock_session
-    
+
     extractor = AdzunaExtractor(app_id="id", app_key="key")
     try:
         extractor._fetch_page({"_page": 1})
@@ -63,10 +71,11 @@ def test_adzuna_extractor_fetch_page_request_exception(mock_get_session):
     except Exception as exc:
         assert "Request failed" in str(exc)
 
+
 def test_adzuna_extractor_parse_response():
     extractor = AdzunaExtractor(app_id="id", app_key="key")
     result = extractor._parse_response({"results": [{"id": 1}, {"id": 2}]})
     assert len(result) == 2
-    
+
     result_empty = extractor._parse_response({})
     assert result_empty == []

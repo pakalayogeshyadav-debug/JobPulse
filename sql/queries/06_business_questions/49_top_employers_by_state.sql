@@ -1,0 +1,2 @@
+-- Analytics Query: 49_top_employers_by_state.sql
+WITH StateRanks AS (SELECT l.state, c.company_name, COUNT(*) as cnt, ROW_NUMBER() OVER(PARTITION BY l.state ORDER BY COUNT(*) DESC) as rnk FROM fact_jobs f JOIN dim_location l ON f.sk_location_id = l.sk_location_id JOIN dim_company c ON f.sk_company_id = c.sk_company_id GROUP BY l.state, c.company_name) SELECT state, company_name, cnt FROM StateRanks WHERE rnk = 1;

@@ -1,0 +1,3 @@
+Archived data files from previous pipeline runs.
+Files are moved here by archive_file() utility after successful loading.
+Format: original_filename_YYYYMMDD_HHMMSS.ext

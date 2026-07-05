@@ -1,0 +1,6 @@
+SQL stored procedures/functions placeholder.
+
+Add PostgreSQL functions here for:
+  - Data quality audit functions
+  - Incremental load helpers
+  - Salary normalisation stored procedures

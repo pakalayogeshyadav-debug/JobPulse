@@ -1,0 +1,2 @@
+-- Analytics Query: 38_top_skill_per_city.sql
+WITH CitySkills AS (SELECT l.city, s.skill_name, COUNT(*) as cnt, ROW_NUMBER() OVER(PARTITION BY l.city ORDER BY COUNT(*) DESC) as rnk FROM fact_jobs f JOIN dim_location l ON f.sk_location_id = l.sk_location_id JOIN bridge_job_skill b ON f.sk_fact_job_id = b.sk_fact_job_id JOIN dim_skill s ON b.sk_skill_id = s.sk_skill_id GROUP BY l.city, s.skill_name) SELECT city, skill_name, cnt FROM CitySkills WHERE rnk = 1;

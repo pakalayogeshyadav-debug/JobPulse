@@ -1,0 +1,216 @@
+version: "3.8"
+
+# =============================================================================
+# Networks
+# =============================================================================
+# A custom bridge network is created to allow services to resolve each other 
+# by their container names (e.g., JobPulse can connect to 'postgres').
+networks:
+  jobpulse_net:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+# Named volumes are used to persist data beyond the lifecycle of a container.
+# If a container restarts or is recreated, the data inside these volumes remains.
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+services:
+  # ===========================================================================
+  # PostgreSQL Data Warehouse
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: jobpulse_postgres
+    restart: unless-stopped
+    networks:
+      - jobpulse_net
+    # Ports exposed to the host machine for local development and direct access
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # The named volume mounts to PostgreSQL's default data directory
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Health checks ensure dependent services only start when the DB is actually ready to accept connections
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # pgAdmin (Database UI)
+  # ===========================================================================
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: jobpulse_pgadmin
+    restart: unless-stopped
+    networks:
+      - jobpulse_net
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@jobpulse.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # JobPulse Application
+  # ===========================================================================
+  jobpulse:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: jobpulse_app
+    # If the app crashes, it will restart automatically (but won't restart if stopped manually)
+    restart: on-failure
+    networks:
+      - jobpulse_net
+    environment:
+      # Injecting environment variables directly for Docker Compose context.
+      # In production, these should be loaded from an external .env file (env_file: .env).
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      DB_HOST: postgres    # Resolves automatically via jobpulse_net
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    # Binds the local logs and data directories so that generated files are easily accessible from the host
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+    # Wait for the postgres service to pass its healthcheck before starting JobPulse
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Redis (Message Broker for Celery)
+  # ===========================================================================
+  redis:
+    image: redis:7.2-alpine
+    container_name: jobpulse_redis
+    restart: unless-stopped
+    networks:
+      - jobpulse_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================================================
+  # Airflow Services
+  # ===========================================================================
+  airflow-init:
+    image: apache/airflow:2.9.1-python3.12
+    container_name: jobpulse_airflow_init
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jobpulse_net
+    environment: &airflow_env
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@postgres/${DB_NAME}
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${DB_USER}:${DB_PASSWORD}@postgres/${DB_NAME}
+      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+      PYTHONPATH: /opt/airflow/src
+      JOBPULSE_PROJECT_ROOT: /opt/airflow
+    volumes: &airflow_volumes
+      - ./dags:/opt/airflow/dags
+      - ./logs/airflow:/opt/airflow/logs
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
+    command: version
+
+  airflow-webserver:
+    image: apache/airflow:2.9.1-python3.12
+    container_name: jobpulse_airflow_webserver
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - jobpulse_net
+    environment: *airflow_env
+    volumes: *airflow_volumes
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    command: webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.1-python3.12
+    container_name: jobpulse_airflow_scheduler
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - jobpulse_net
+    environment: *airflow_env
+    volumes: *airflow_volumes
+    command: scheduler
+
+  airflow-triggerer:
+    image: apache/airflow:2.9.1-python3.12
+    container_name: jobpulse_airflow_triggerer
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - jobpulse_net
+    environment: *airflow_env
+    volumes: *airflow_volumes
+    command: triggerer
+
+  airflow-worker:
+    image: apache/airflow:2.9.1-python3.12
+    container_name: jobpulse_airflow_worker
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    networks:
+      - jobpulse_net
+    environment: *airflow_env
+    volumes: *airflow_volumes
+    command: celery worker

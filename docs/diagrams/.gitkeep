@@ -1,0 +1,12 @@
+Diagrams directory — store system and data flow diagrams here.
+
+Suggested tools:
+  - draw.io (free, exports to PNG/SVG)
+  - Lucidchart
+  - Mermaid (inline in Markdown docs)
+  - dbdiagram.io (for entity-relationship diagrams)
+
+Recommended diagrams to create:
+  1. pipeline_architecture.png   — End-to-end ETL flow diagram
+  2. database_erd.png            — Entity-Relationship Diagram (PostgreSQL tables)
+  3. deployment_architecture.png — Infrastructure diagram (Docker, AWS)

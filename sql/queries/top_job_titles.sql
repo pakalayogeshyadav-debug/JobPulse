@@ -1,0 +1,32 @@
+-- =============================================================================
+-- JobPulse — Analytical Query: Top Job Titles by Count
+-- sql/queries/top_job_titles.sql
+--
+-- Purpose:
+--   Returns the top N most frequently posted job titles in the dataset.
+--   Used for: Power BI bar charts, trend analysis, market sizing.
+--
+-- Parameters (replace manually or via your BI tool):
+--   :min_date  → Filter postings after this date (e.g., '2024-01-01')
+--   :limit     → Number of titles to return (e.g., 20)
+--
+-- Usage:
+--   psql -d jobpulse_dw -f sql/queries/top_job_titles.sql
+-- =============================================================================
+
+-- TODO: Implement this query once the job_listings table is populated.
+--
+-- SELECT
+--     title                               AS job_title,
+--     COUNT(*)                            AS posting_count,
+--     ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (), 2) AS pct_of_total
+-- FROM
+--     public.job_listings
+-- WHERE
+--     is_active = TRUE
+--     AND created_at >= :min_date
+-- GROUP BY
+--     title
+-- ORDER BY
+--     posting_count DESC
+-- LIMIT :limit;

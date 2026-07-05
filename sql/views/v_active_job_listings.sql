@@ -1,0 +1,41 @@
+-- =============================================================================
+-- JobPulse — View: Active Job Listings Summary
+-- sql/views/v_active_job_listings.sql
+--
+-- Purpose:
+--   Provides a clean, denormalised view of active job listings
+--   optimised for direct Power BI connectivity.
+--   Hides internal columns (id, source_id) and formats for BI consumption.
+--
+-- Refresh Strategy:
+--   This is a standard view (not materialised), so it always reflects
+--   the latest data. Consider a MATERIALISED VIEW if query performance
+--   becomes an issue at scale.
+--
+-- Usage:
+--   psql -d jobpulse_dw -f sql/views/v_active_job_listings.sql
+-- =============================================================================
+
+-- TODO: Implement after job_listings table is created.
+--
+-- CREATE OR REPLACE VIEW public.v_active_job_listings AS
+-- SELECT
+--     title                               AS job_title,
+--     company_name,
+--     city,
+--     state,
+--     country,
+--     CASE WHEN is_remote THEN 'Remote' ELSE 'On-site' END AS work_mode,
+--     salary_min,
+--     salary_max,
+--     salary_currency,
+--     job_type,
+--     experience_level,
+--     source_name                         AS data_source,
+--     created_at::DATE                    AS ingested_date
+-- FROM
+--     public.job_listings
+-- WHERE
+--     is_active = TRUE
+-- ORDER BY
+--     created_at DESC;

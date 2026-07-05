@@ -1,0 +1,2 @@
+-- Analytics Query: 18_skills_correlation.sql
+SELECT s1.skill_name as skill_a, s2.skill_name as skill_b, COUNT(*) as co_occurrences FROM bridge_job_skill b1 JOIN bridge_job_skill b2 ON b1.sk_fact_job_id = b2.sk_fact_job_id AND b1.sk_skill_id < b2.sk_skill_id JOIN dim_skill s1 ON b1.sk_skill_id = s1.sk_skill_id JOIN dim_skill s2 ON b2.sk_skill_id = s2.sk_skill_id GROUP BY s1.skill_name, s2.skill_name ORDER BY co_occurrences DESC LIMIT 20;

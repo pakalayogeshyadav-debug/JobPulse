@@ -1,0 +1,8 @@
+This directory stores raw, unprocessed data files as received from sources.
+
+Rules:
+  - Files here are IMMUTABLE — never modify raw data directly
+  - Raw data is NOT committed to Git (see .gitignore)
+  - Use DVC or AWS S3 for large-file storage in production
+  - Each pipeline run should store data in a dated subdirectory:
+      data/raw/YYYY-MM-DD/source_name/

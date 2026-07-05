@@ -1,0 +1,238 @@
+# =============================================================================
+# JobPulse — .gitignore
+# Follows Python, data engineering, and IDE best practices
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+MANIFEST
+
+# -----------------------------------------------------------------------------
+# Virtual Environments
+# -----------------------------------------------------------------------------
+venv/
+.venv/
+env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# -----------------------------------------------------------------------------
+# Environment & Secrets (NEVER commit these!)
+# -----------------------------------------------------------------------------
+.env
+*.env
+.secrets
+secrets.yaml
+credentials.json
+
+# -----------------------------------------------------------------------------
+# Distribution / Packaging
+# -----------------------------------------------------------------------------
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.whl
+
+# -----------------------------------------------------------------------------
+# Testing & Coverage
+# -----------------------------------------------------------------------------
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+junit.xml
+
+# -----------------------------------------------------------------------------
+# Jupyter Notebooks (checkpoints)
+# -----------------------------------------------------------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# -----------------------------------------------------------------------------
+# Data Files (raw data stays out of Git — use DVC or S3 instead)
+# -----------------------------------------------------------------------------
+data/raw/*
+data/staging/*
+data/processed/*
+data/archive/*
+
+# Keep directory structure with .gitkeep placeholder files
+!data/raw/.gitkeep
+!data/staging/.gitkeep
+!data/processed/.gitkeep
+!data/archive/.gitkeep
+
+# Common data formats
+*.csv
+*.parquet
+*.json
+*.jsonl
+*.xlsx
+*.xls
+*.tsv
+*.pickle
+*.pkl
+*.feather
+*.avro
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+logs/
+*.log
+*.out
+log/
+
+# Keep the logs directory
+!logs/.gitkeep
+
+# -----------------------------------------------------------------------------
+# IDE & Editor Files
+# -----------------------------------------------------------------------------
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# PyCharm / IntelliJ
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Spyder
+.spyderproject.cfg
+.spyproject/
+
+# Rope
+.ropeproject/
+
+# -----------------------------------------------------------------------------
+# Operating System Files
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+.docker/
+
+# -----------------------------------------------------------------------------
+# Airflow (for future use)
+# -----------------------------------------------------------------------------
+airflow.db
+airflow.cfg
+unittests.cfg
+webserver_config.py
+dags/__pycache__/
+logs/scheduler/
+logs/dag_processor_manager/
+
+# -----------------------------------------------------------------------------
+# AWS / Cloud Credentials
+# -----------------------------------------------------------------------------
+.aws/
+*.pem
+*.key
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+
+# -----------------------------------------------------------------------------
+# mypy & type checkers
+# -----------------------------------------------------------------------------
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# -----------------------------------------------------------------------------
+# Ruff & Linters
+# -----------------------------------------------------------------------------
+.ruff_cache/
+
+# -----------------------------------------------------------------------------
+# Documentation build output
+# -----------------------------------------------------------------------------
+docs/_build/
+docs/site/
+site/
+# =============================================================================
+# JobPulse specific
+# =============================================================================
+
+# Temporary folders
+.tmp/
+.pytest_tmp/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Airflow
+airflow_home/
+
+# Generated reports
+reports/*.html
+reports/*.pdf
+reports/*.csv
+
+# Power BI exports
+powerbi/*.pbix.autosave
+
+# Debug / forensic artifacts
+evidence*.txt
+final_verification.md
+
+# OS temp
+*.tmp
+
+# Node (if frontend migration happens later)
+node_modules/
+
+# Terraform (future cloud deployment)
+.terraform/
+terraform.tfstate*

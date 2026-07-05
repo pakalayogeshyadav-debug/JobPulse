@@ -1,0 +1,73 @@
+# =============================================================================
+# JobPulse — Runtime Configuration
+# config/settings.yaml
+#
+# Purpose:
+#   Non-secret, non-environment-specific runtime settings.
+#   This file IS committed to Git (no secrets here).
+#   Secrets (passwords, API keys) go ONLY in .env
+#
+# Loading:
+#   This file is read by src/jobpulse/config/yaml_loader.py
+# =============================================================================
+
+pipeline:
+  name: "JobPulse ETL Pipeline"
+  version: "0.1.0"
+
+  # Data directory paths (relative to project root)
+  data:
+    raw_dir: "data/raw"
+    staging_dir: "data/staging"
+    processed_dir: "data/processed"
+    archive_dir: "data/archive"
+
+  # Log file path (relative to project root)
+  log_file: "logs/jobpulse.log"
+  log_max_bytes: 10485760      # 10 MB per log file
+  log_backup_count: 5          # Keep 5 rotated log files
+
+extraction:
+  # Timeout for outbound HTTP requests (seconds)
+  http_timeout_seconds: 30
+
+  # Supported source types (for documentation / validation)
+  # Actual extractors live in src/jobpulse/extraction/
+  sources:
+    - name: "sample_csv"
+      enabled: true
+      description: "Local CSV file for development/testing"
+
+    - name: "adzuna_api"
+      enabled: false
+      description: "Adzuna Job Search API (requires API key)"
+
+    - name: "usajobs_api"
+      enabled: false
+      description: "USAJobs.gov public API (requires API key)"
+
+transformation:
+  # Columns to drop during raw → staging transformation
+  drop_columns: []
+
+  # Normalise job titles to these canonical categories
+  # (expand this list as your data grows)
+  title_normalisation:
+    data_engineer: ["data engineer", "de", "etl developer", "data pipeline engineer"]
+    data_analyst: ["data analyst", "business analyst", "bi analyst"]
+    data_scientist: ["data scientist", "ml engineer", "machine learning engineer"]
+
+loading:
+  # If true, use UPSERT (INSERT ... ON CONFLICT DO UPDATE) instead of INSERT
+  upsert_on_conflict: true
+
+  # Number of rows per SQLAlchemy bulk_insert_mappings() call
+  bulk_insert_chunk_size: 500
+
+validation:
+  # Minimum non-null rate (0.0 to 1.0) required for each column.
+  # Columns below this threshold trigger a DataQualityError.
+  min_completeness_ratio: 0.95
+
+  # Maximum allowed duplicate rate (0.0 to 1.0)
+  max_duplicate_ratio: 0.05

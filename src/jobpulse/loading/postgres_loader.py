@@ -222,7 +222,7 @@ class PostgresLoader(BaseLoader):
 
         # Execute the UPSERT
         # In SQLAlchemy 2.0 with psycopg2/psycopg3, this uses execute_values or batching under the hood
-        result = session.execute(upsert_stmt)
+        session.execute(upsert_stmt)
 
         # Since INSERT ... ON CONFLICT DO UPDATE doesn't trivially return the counts of
         # specifically inserted vs updated rows through standard rowcount (it varies by driver),

@@ -20,13 +20,13 @@ if os.name == "nt":
     import types
 
     fcntl = types.ModuleType("fcntl")
-    fcntl.ioctl = lambda *args, **kwargs: None
-    fcntl.flock = lambda *args, **kwargs: None
-    fcntl.lockf = lambda *args, **kwargs: None
-    fcntl.LOCK_EX = 2
-    fcntl.LOCK_SH = 1
-    fcntl.LOCK_NB = 4
-    fcntl.LOCK_UN = 8
+    fcntl.ioctl = lambda *args, **kwargs: None  # type: ignore[attr-defined]
+    fcntl.flock = lambda *args, **kwargs: None  # type: ignore[attr-defined]
+    fcntl.lockf = lambda *args, **kwargs: None  # type: ignore[attr-defined]
+    fcntl.LOCK_EX = 2  # type: ignore[attr-defined]
+    fcntl.LOCK_SH = 1  # type: ignore[attr-defined]
+    fcntl.LOCK_NB = 4  # type: ignore[attr-defined]
+    fcntl.LOCK_UN = 8  # type: ignore[attr-defined]
     sys.modules["fcntl"] = fcntl
 
     # Mock timeout context managers to avoid signal.SIGALRM on Windows

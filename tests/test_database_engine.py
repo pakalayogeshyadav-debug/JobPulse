@@ -38,7 +38,7 @@ def test_get_session_factory():
     mock_engine = MagicMock()
     factory = get_session_factory(mock_engine)
     assert factory.kw["bind"] == mock_engine
-    assert factory.kw["autocommit"] == False
+    assert not factory.kw["autocommit"]
 
 
 def test_test_connection_success():

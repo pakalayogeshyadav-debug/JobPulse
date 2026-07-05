@@ -37,7 +37,6 @@ def generate_html_report(report: ValidationReport, output_dir: str = "reports") 
         <div class="container">
             <h1>JobPulse Data Validation Report</h1>
             <p>Timestamp: {report.timestamp}</p>
-            
             <h2>Executive Summary</h2>
             <div class="kpi-board">
                 <div class="kpi-card"><div>Rows Checked</div><div class="kpi-value">{report.rows_checked}</div></div>
@@ -45,7 +44,6 @@ def generate_html_report(report: ValidationReport, output_dir: str = "reports") 
                 <div class="kpi-card"><div>Invalid Rows</div><div class="kpi-value" style="color:#e74c3c;">{report.rows_invalid}</div></div>
                 <div class="kpi-card"><div>Success Rate</div><div class="kpi-value">{report.success_rate:.1%}</div></div>
             </div>
-            
             <h2>Performance Metrics</h2>
             <ul>
                 <li>Execution Time: {report.execution_time:.2f} seconds</li>
@@ -54,7 +52,6 @@ def generate_html_report(report: ValidationReport, output_dir: str = "reports") 
 
             <h2>Unknown Skills Identified</h2>
             <p>{', '.join(report.unknown_skills[:20]) if report.unknown_skills else 'None detected.'} { '...' if len(report.unknown_skills) > 20 else '' }</p>
-            
             <h2>Rule Execution Summary</h2>
             <table>
                 <tr><th>Rule Name</th><th>Severity</th><th>Rows Failed</th><th>Execution Time (s)</th></tr>

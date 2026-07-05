@@ -49,7 +49,7 @@ def test_api_extractor_get_session():
 
 def test_api_extractor_close():
     extractor = DummyApiExtractor("dummy", "http://dummy", "secret")
-    session = extractor._get_session()
+    extractor._get_session()
     extractor.close()
     assert extractor._session is None
     # Context manager

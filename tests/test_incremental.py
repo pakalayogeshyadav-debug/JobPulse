@@ -639,7 +639,7 @@ class TestIncrementalRunner:
             run_id="prev-run",
         )
         # filter_from = watermark - 24h = 2024-06-28 03:00
-        filter_from_expected = utc(2024, 6, 28, 3)
+        # utc(2024, 6, 28, 3) — verified by checking rows filtered below
 
         old_rows = make_df(8, posted_date=utc(2024, 6, 27))  # Before filter_from
         new_rows = make_df(2, posted_date=utc(2024, 6, 30))  # After filter_from
@@ -749,9 +749,7 @@ class TestIncrementalRunner:
         with patch.object(
             runner._loader._detector, "detect", return_value=mock_detection
         ):
-            with patch.object(
-                runner._loader, "load", wraps=runner._loader.load
-            ) as spy_load:
+            with patch.object(runner._loader, "load", wraps=runner._loader.load):
                 # Patch the inner UPSERT so it returns (0, 0) without hitting DB
                 with patch.object(runner._loader, "_upsert_chunk", return_value=(0, 0)):
                     summary = runner.run(df)

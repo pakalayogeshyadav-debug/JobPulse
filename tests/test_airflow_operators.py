@@ -107,8 +107,9 @@ def test_load_operator_execute():
     ) as mock_load:
         mock_load.return_value = pd.DataFrame({"title": ["dev"]})
 
-        with patch("src.jobpulse.airflow.operators.create_db_engine"), patch(
-            "src.jobpulse.airflow.operators.get_session_factory"
+        with (
+            patch("src.jobpulse.airflow.operators.create_db_engine"),
+            patch("src.jobpulse.airflow.operators.get_session_factory"),
         ):
             with patch(
                 "src.jobpulse.airflow.operators.PostgresLoader"

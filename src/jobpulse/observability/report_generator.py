@@ -290,11 +290,6 @@ class DailyReport:
         Returns:
             list: Slack blocks suitable for the 'blocks' key in a Slack API call.
         """
-        color = (
-            "#36a64f"
-            if self.pipeline_success_rate_pct == 100.0
-            else "#ffcc00" if self.pipeline_success_rate_pct >= 50.0 else "#cc0000"
-        )
         return [
             {
                 "type": "header",

@@ -174,7 +174,7 @@ class DataValidator:
         )
 
         # Filter out invalid rows before returning
-        df_clean = df_validated[df_validated["is_valid"] == True].copy()
+        df_clean = df_validated[df_validated["is_valid"]].copy()
         # Clean up internal tracking columns if desired, but retaining them aids debugging/warehouse loads
 
         return df_clean, report

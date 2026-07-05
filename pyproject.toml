@@ -1,2 +1,30 @@
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312"]
+
 [tool.ruff]
-ignore = ["B011", "S608", "E722", "S112", "E402", "S310", "W291"]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+# E/F/W: pycodestyle errors, pyflakes, pycodestyle warnings
+select = ["E", "F", "W"]
+# Suppressed rules that are intentional in this codebase
+ignore = ["B011", "S608", "E722", "S112", "E402", "S310", "W291", "E501"]
+
+[tool.mypy]
+# Use 3.12 so mypy accepts numpy 2.x stubs that use the `type` statement syntax
+# (introduced in Python 3.12). The actual runtime target is 3.10+.
+python_version = "3.12"
+ignore_missing_imports = true
+explicit_package_bases = true
+warn_unused_ignores = false
+
+# Skip following third-party stubs that use Python 3.12+ syntax
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*"]
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["pandas", "pandas.*"]
+follow_imports = "skip"

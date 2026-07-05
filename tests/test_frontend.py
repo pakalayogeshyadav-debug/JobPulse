@@ -30,8 +30,9 @@ from frontend.services.warehouse_service import (
 @pytest.fixture(autouse=True)
 def mock_streamlit_cache():
     """Mock Streamlit's cache decorators so tests can run without Streamlit context."""
-    with patch("streamlit.cache_data", lambda *args, **kwargs: lambda f: f), patch(
-        "streamlit.cache_resource", lambda *args, **kwargs: lambda f: f
+    with (
+        patch("streamlit.cache_data", lambda *args, **kwargs: lambda f: f),
+        patch("streamlit.cache_resource", lambda *args, **kwargs: lambda f: f),
     ):
         yield
 

@@ -22,9 +22,8 @@ Adding a new check:
 
 from __future__ import annotations
 
-import re
 import urllib.parse
-from datetime import UTC, date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import ClassVar
 
 import pandas as pd

@@ -295,7 +295,7 @@ class BaseExtractor(ABC):
         started_at = datetime.now(tz=UTC)
         t0 = time.perf_counter()
 
-        source_ok = self._run_validation()  # raises ExtractionValidationError on False
+        self._run_validation()  # raises ExtractionValidationError on False
 
         # ── Step 2: Extract data ──────────────────────────────────────────────
         df = self._run_extraction()  # raises DataExtractionError on failure

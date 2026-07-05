@@ -427,8 +427,8 @@ class TestCsvExtractorExtract:
         ext = CsvExtractor(file_path=sample_csv)
         df = ext.extract()
         for dtype in df.dtypes:
-            assert (
-                pd.api.types.is_string_dtype(dtype) or dtype == object
+            assert pd.api.types.is_string_dtype(dtype) or pd.api.types.is_object_dtype(
+                dtype
             ), f"Expected object/string dtype, got {dtype}"
 
     def test_column_names_are_normalised_to_lowercase(self, sample_csv: Path) -> None:

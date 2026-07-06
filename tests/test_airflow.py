@@ -89,7 +89,7 @@ def _make_dag_bag(dags_dir: Path):
 
     params = inspect.signature(DagBag.__init__).parameters
     if "include_examples" in params:
-        return DagBag(dag_folder=str(dags_dir), include_examples=False)
+        return DagBag(dag_folder=str(dags_dir), include_examples=False)  # type: ignore[call-arg]
     # Older Airflow 2.x: rely on the env var set above.
     return DagBag(dag_folder=str(dags_dir))
 

@@ -110,6 +110,7 @@ def test_load_operator_execute():
         with (
             patch("src.jobpulse.airflow.operators.create_db_engine"),
             patch("src.jobpulse.airflow.operators.get_session_factory"),
+            patch("src.jobpulse.airflow.operators.get_settings"),
         ):
             with patch(
                 "src.jobpulse.airflow.operators.PostgresLoader"

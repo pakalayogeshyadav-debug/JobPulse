@@ -2,6 +2,7 @@
 
 # ruff: noqa: E402,S110
 
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ os.environ["AIRFLOW_HOME"] = str(AIRFLOW_HOME)
 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = (
     f"sqlite:///{(AIRFLOW_HOME / 'airflow.db').as_posix()}"
 )
+# Tell Airflow never to load bundled example DAGs — works across all versions.
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
 
 # Windows compatibility for Airflow imports (mocks fcntl)
@@ -69,23 +71,60 @@ if os.name == "nt":
 
 import pytest
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_dag_bag(dags_dir: Path):
+    """Create a DagBag that works across Airflow 2.x and 3.x.
+
+    Airflow 2.x removed the ``include_examples`` constructor argument from
+    ``DagBag`` — the setting is controlled exclusively through the env var
+    ``AIRFLOW__CORE__LOAD_EXAMPLES``.  Airflow 3.x re-added it.  We detect
+    the available parameters at import time and call accordingly so the same
+    test file works with any installed version.
+    """
+    from airflow.models import DagBag
+
+    params = inspect.signature(DagBag.__init__).parameters
+    if "include_examples" in params:
+        return DagBag(dag_folder=str(dags_dir), include_examples=False)
+    # Older Airflow 2.x: rely on the env var set above.
+    return DagBag(dag_folder=str(dags_dir))
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped DB initialisation
+# ---------------------------------------------------------------------------
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_airflow_db():
-    from airflow.utils.db import upgradedb
+    """Initialise the Airflow metadata database.
 
-    upgradedb()
+    Tries the modern ``upgradedb`` first, then falls back to ``initdb`` for
+    older Airflow releases that don't expose ``upgradedb``.
+    """
+    import airflow.utils.db as af_db
+
+    if hasattr(af_db, "upgradedb"):
+        af_db.upgradedb()
+    elif hasattr(af_db, "initdb"):
+        af_db.initdb()
+    # If neither exists the DB is likely already initialised — continue.
 
 
-from airflow.models import DagBag
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
 
 
 def test_dag_loading_no_errors():
     """Test that all DAGs in the dags/ folder load without errors."""
     dags_dir = Path(__file__).parent.parent / "dags"
-    dag_bag = DagBag(dag_folder=str(dags_dir), include_examples=False)
+    dag_bag = _make_dag_bag(dags_dir)
 
-    # Assert there are no import errors
     assert (
         len(dag_bag.import_errors) == 0
     ), f"DAG import errors: {dag_bag.import_errors}"
@@ -94,7 +133,7 @@ def test_dag_loading_no_errors():
 def test_pipeline_dag_structure():
     """Test the structure of the main jobpulse_pipeline DAG."""
     dags_dir = Path(__file__).parent.parent / "dags"
-    dag_bag = DagBag(dag_folder=str(dags_dir), include_examples=False)
+    dag_bag = _make_dag_bag(dags_dir)
 
     dag = dag_bag.get_dag(dag_id="jobpulse_daily_etl")
     assert dag is not None
@@ -119,7 +158,7 @@ def test_pipeline_dag_structure():
 
 def test_incremental_dag_structure():
     dags_dir = Path(__file__).parent.parent / "dags"
-    dag_bag = DagBag(dag_folder=str(dags_dir), include_examples=False)
+    dag_bag = _make_dag_bag(dags_dir)
 
     dag = dag_bag.get_dag(dag_id="jobpulse_incremental_etl")
     assert dag is not None
@@ -127,7 +166,7 @@ def test_incremental_dag_structure():
 
 def test_backfill_dag_structure():
     dags_dir = Path(__file__).parent.parent / "dags"
-    dag_bag = DagBag(dag_folder=str(dags_dir), include_examples=False)
+    dag_bag = _make_dag_bag(dags_dir)
 
     dag = dag_bag.get_dag(dag_id="jobpulse_backfill_etl")
     assert dag is not None

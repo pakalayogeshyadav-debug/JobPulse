@@ -82,8 +82,8 @@ services:
       # In production, these should be loaded from an external .env file (env_file: .env).
       ENVIRONMENT: development
       LOG_LEVEL: INFO
-      DB_HOST: postgres    # Resolves automatically via jobpulse_net
-      DB_PORT: 5432
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}

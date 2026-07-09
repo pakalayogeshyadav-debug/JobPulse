@@ -108,6 +108,25 @@ class Settings(BaseSettings):
     )
 
     # -------------------------------------------------------------------------
+    # Filesystem Paths
+    # -------------------------------------------------------------------------
+    data_dir: str = Field(
+        default=str(_PROJECT_ROOT / "data"), description="Base directory for data."
+    )
+    raw_data_dir: str = Field(
+        default=str(_PROJECT_ROOT / "data" / "raw"), description="Raw data directory."
+    )
+    processed_data_dir: str = Field(
+        default=str(_PROJECT_ROOT / "data" / "processed"), description="Processed data directory."
+    )
+    report_dir: str = Field(
+        default=str(_PROJECT_ROOT / "reports"), description="Directory for validation reports."
+    )
+    log_dir: str = Field(
+        default=str(_PROJECT_ROOT / "logs"), description="Directory for log files."
+    )
+
+    # -------------------------------------------------------------------------
     # Computed / Derived Fields
     # -------------------------------------------------------------------------
     @computed_field  # type: ignore[misc]

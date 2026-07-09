@@ -22,6 +22,9 @@ from jobpulse.transformation.job_listing_transformer import JobListingTransforme
 from jobpulse.validation.history import save_validation_history
 from jobpulse.validation.html_report import generate_html_report
 from jobpulse.validation.validator import DataValidator
+from jobpulse.database.bootstrap import bootstrap_database
+from jobpulse.utils.dir_manager import ensure_runtime_directories
+from jobpulse.exceptions import PipelineFatalError, DatabaseError, ReportingError
 
 logger = get_logger(__name__)
 
@@ -49,12 +52,14 @@ class PipelineOrchestrator:
         """
         self.settings = settings
 
+        # Ensure directories exist
+        ensure_runtime_directories(settings)
+
         # Determine raw data directory
         if raw_data_dir:
             self.raw_data_dir = Path(raw_data_dir)
         else:
-            project_root = Path(__file__).resolve().parent.parent.parent.parent
-            self.raw_data_dir = project_root / "data" / "raw"
+            self.raw_data_dir = Path(settings.raw_data_dir)
 
         # Component instantiation
         self.extractor = DirectoryExtractor(
@@ -89,8 +94,19 @@ class PipelineOrchestrator:
         validation_report = None
         load_report = None
         status = "SUCCESS"
+        warnings = []
+        reports_generated = False
 
         try:
+            # ---------------------------------------------------------
+            # Phase 0: BOOTSTRAP DATABASE
+            # ---------------------------------------------------------
+            logger.info("--- [STAGE: BOOTSTRAP] ---")
+            with self.loader.session_factory.kw["bind"].connect() as conn:
+                engine = conn.engine
+            bootstrap_database(engine)
+            logger.info("Bootstrap completed")
+
             # ---------------------------------------------------------
             # Phase 1: EXTRACTION
             # ---------------------------------------------------------
@@ -112,15 +128,18 @@ class PipelineOrchestrator:
             if df_raw.empty:
                 logger.warning("No data extracted. Aborting subsequent stages.")
                 return ETLReport.from_reports(
-                    pipeline_start,
-                    datetime.now(tz=UTC),
-                    files_processed,
-                    rows_extracted,
-                    None,
-                    None,
-                    None,
-                    "SUCCESS",
+                    start_time=pipeline_start,
+                    end_time=datetime.now(tz=UTC),
+                    files_processed=files_processed,
+                    rows_extracted=rows_extracted,
+                    transform_report=None,
+                    validation_report=None,
+                    load_report=None,
+                    status="SUCCESS",
+                    warnings=warnings,
+                    reports_generated=reports_generated,
                 )
+            logger.info("Extraction completed")
 
             # ---------------------------------------------------------
             # Phase 2: TRANSFORMATION
@@ -136,15 +155,18 @@ class PipelineOrchestrator:
                     "All records were filtered out during transformation. Aborting validation and load."
                 )
                 return ETLReport.from_reports(
-                    pipeline_start,
-                    datetime.now(tz=UTC),
-                    files_processed,
-                    rows_extracted,
-                    transform_report,
-                    None,
-                    None,
-                    "SUCCESS",
+                    start_time=pipeline_start,
+                    end_time=datetime.now(tz=UTC),
+                    files_processed=files_processed,
+                    rows_extracted=rows_extracted,
+                    transform_report=transform_report,
+                    validation_report=None,
+                    load_report=None,
+                    status="SUCCESS",
+                    warnings=warnings,
+                    reports_generated=reports_generated,
                 )
+            logger.info("Transformation completed")
 
             # ---------------------------------------------------------
             # Phase 2.5: VALIDATION
@@ -155,30 +177,21 @@ class PipelineOrchestrator:
             t_validate = time.perf_counter() - t0
             logger.info("Validation completed in %.2fs.", t_validate)
 
-            # Save artifacts
-            run_id = pipeline_start.strftime("%Y%m%d_%H%M%S")
-            generate_html_report(
-                validation_report,
-                output_dir=str(self.raw_data_dir.parent.parent / "reports"),
-            )
-            save_validation_history(
-                validation_report,
-                run_id=run_id,
-                output_dir=str(self.raw_data_dir.parent),
-            )
-
             if df_valid.empty:
                 logger.warning("All records failed critical validation. Aborting load.")
                 return ETLReport.from_reports(
-                    pipeline_start,
-                    datetime.now(tz=UTC),
-                    files_processed,
-                    rows_extracted,
-                    transform_report,
-                    validation_report,
-                    None,
-                    "SUCCESS",
+                    start_time=pipeline_start,
+                    end_time=datetime.now(tz=UTC),
+                    files_processed=files_processed,
+                    rows_extracted=rows_extracted,
+                    transform_report=transform_report,
+                    validation_report=validation_report,
+                    load_report=None,
+                    status="SUCCESS",
+                    warnings=warnings,
+                    reports_generated=reports_generated,
                 )
+            logger.info("Validation completed")
 
             # ---------------------------------------------------------
             # Phase 3: LOADING
@@ -202,9 +215,37 @@ class PipelineOrchestrator:
 
             t_load = time.perf_counter() - t0
             logger.info("Loading completed in %.2fs.", t_load)
+            logger.info("Database load completed successfully")
 
+            # ---------------------------------------------------------
+            # Phase 4: REPORTING
+            # ---------------------------------------------------------
+            logger.info("--- [STAGE: REPORTING] ---")
+            try:
+                run_id = pipeline_start.strftime("%Y%m%d_%H%M%S")
+                generate_html_report(
+                    validation_report,
+                    output_dir=self.settings.report_dir,
+                )
+                save_validation_history(
+                    validation_report,
+                    run_id=run_id,
+                    output_dir=self.settings.data_dir,
+                )
+                reports_generated = True
+                logger.info("Report generation completed")
+            except Exception as e:
+                reports_generated = False
+                logger.exception("Report generation failed: %s", e)
+                warnings.append(f"Report generation failed: {e}")
+                if status == "SUCCESS":
+                    status = "SUCCESS_WITH_REPORT_WARNING"
+
+        except (PipelineFatalError, DatabaseError) as e:
+            logger.exception("Pipeline execution aborted due to unhandled fatal error: %s", e)
+            status = "FAILURE"
+            raise e
         except Exception as e:
-            # If Extraction or Transformation crashes, the pipeline fails entirely.
             logger.exception("Pipeline execution aborted due to unhandled error: %s", e)
             status = "FAILURE"
             raise e
@@ -212,17 +253,25 @@ class PipelineOrchestrator:
         finally:
             pipeline_end = datetime.now(tz=UTC)
             report = ETLReport.from_reports(
-                pipeline_start,
-                pipeline_end,
-                files_processed,
-                rows_extracted,
-                transform_report,
-                validation_report,
-                load_report,
-                status,  # type: ignore
+                start_time=pipeline_start,
+                end_time=pipeline_end,
+                files_processed=files_processed,
+                rows_extracted=rows_extracted,
+                transform_report=transform_report,
+                validation_report=validation_report,
+                load_report=load_report,
+                status=status,  # type: ignore
+                warnings=warnings,
+                reports_generated=reports_generated,
             )
 
-            logger.info("Pipeline execution finished.")
+            if status == "SUCCESS":
+                logger.info("Pipeline completed successfully")
+            elif status == "SUCCESS_WITH_REPORT_WARNING":
+                logger.info("Pipeline completed with warnings")
+            else:
+                logger.info("Pipeline execution finished with status: %s", status)
+
             logger.info(report.render_console_summary())
 
             return report

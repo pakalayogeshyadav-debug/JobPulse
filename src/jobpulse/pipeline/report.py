@@ -46,7 +46,9 @@ class ETLReport:
     rows_updated: int
     rows_failed: int
 
-    status: Literal["SUCCESS", "PARTIAL SUCCESS", "FAILURE"]
+    status: Literal["SUCCESS", "PARTIAL SUCCESS", "FAILURE", "SUCCESS_WITH_REPORT_WARNING"]
+    warnings: list[str]
+    reports_generated: bool
 
     @classmethod
     def from_reports(
@@ -58,7 +60,9 @@ class ETLReport:
         transform_report: TransformationReport | None,
         validation_report: ValidationReport | None,
         load_report: LoadReport | None,
-        status: Literal["SUCCESS", "PARTIAL SUCCESS", "FAILURE"],
+        status: Literal["SUCCESS", "PARTIAL SUCCESS", "FAILURE", "SUCCESS_WITH_REPORT_WARNING"],
+        warnings: list[str] | None = None,
+        reports_generated: bool = False,
     ) -> ETLReport:
         """Construct an ETLReport from constituent layer reports."""
         duration = (end_time - start_time).total_seconds()
@@ -92,6 +96,8 @@ class ETLReport:
             rows_updated=load_report.rows_updated if load_report else 0,
             rows_failed=load_report.rows_failed if load_report else 0,
             status=status,
+            warnings=warnings or [],
+            reports_generated=reports_generated,
         )
 
     def render_console_summary(self) -> str:
@@ -111,10 +117,16 @@ class ETLReport:
             f"Rows Loaded          : {(self.rows_inserted + self.rows_updated):,}\n"
             f"Rows Updated         : {self.rows_updated:,}\n"
             f"Duplicates Removed   : {self.duplicates_removed:,}\n"
-            f"Rejected Rows        : {self.rejected_rows:,}\n\n"
+            f"Rejected Rows        : {self.rejected_rows:,}\n"
+            f"Reports Generated    : {self.reports_generated}\n\n"
             f"Pipeline Duration    : {self.total_duration_seconds:.1f} seconds\n\n"
             f"Database             : PostgreSQL\n\n"
-            f"Status               : {self.status}"
+            f"Status               : {self.status}\n"
         )
+
+        if self.warnings:
+            content += f"\nWarnings             :\n"
+            for w in self.warnings:
+                content += f"  - {w}\n"
 
         return f"\n{header}\n\n{content}\n\n{footer}\n"

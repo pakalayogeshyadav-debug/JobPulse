@@ -61,8 +61,9 @@ def temp_raw_dir(tmp_path: Path):
     return raw_dir
 
 
+@patch("jobpulse.pipeline.orchestrator.bootstrap_database")
 def test_pipeline_orchestrator_success(
-    mock_session_factory, temp_raw_dir, mock_settings
+    mock_bootstrap, mock_session_factory, temp_raw_dir, mock_settings
 ):
     """Verify that a successful run flows from Extract to Load cleanly."""
 

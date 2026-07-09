@@ -51,8 +51,8 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --chown=jobpulse:jobpulse src/ ./src/
 COPY --chown=jobpulse:jobpulse main.py ./
 
-# Create directories for logs and data so they exist with correct permissions
-RUN mkdir -p logs data && chown -R jobpulse:jobpulse logs data
+# Create directories for logs, data, and reports so they exist with correct permissions
+RUN mkdir -p logs data reports && chown -R jobpulse:jobpulse logs data reports
 
 # Ensure Python can find the src module
 ENV PYTHONPATH="/app/src"

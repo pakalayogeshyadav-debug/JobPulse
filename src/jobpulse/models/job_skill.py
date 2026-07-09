@@ -6,8 +6,9 @@ Resolves the many-to-many relationship between jobs and skills.
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint, DateTime, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime
 
 from jobpulse.models.base import Base
 
@@ -54,6 +55,9 @@ class JobSkill(Base):
     is_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     proficiency_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
     extracted_text: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("NOW()"), nullable=False
+    )
 
     # Relationships
     job: Mapped[Job] = relationship("Job", back_populates="job_skills")  # type: ignore[name-defined]  # noqa: F821

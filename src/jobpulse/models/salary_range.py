@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, FetchedValue
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from jobpulse.models.base import Base, TimestampMixin
@@ -51,8 +51,9 @@ class SalaryRange(TimestampMixin, Base):
     salary_max: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=14, scale=2), nullable=True
     )
-    # Note: salary_midpoint is a GENERATED column in PostgreSQL.
-    # SQLAlchemy reads it but does not write it.
+    salary_midpoint: Mapped[Decimal | None] = mapped_column(
+        Numeric(precision=14, scale=2), nullable=True, server_default=FetchedValue()
+    )
 
     currency_code: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
     salary_period: Mapped[str] = mapped_column(

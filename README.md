@@ -382,7 +382,11 @@ This project is licensed under the MIT License — see [LICENSE](LICENSE) for de
 ## Author
 
 **P Yogesh Yadav**
-Senior Data Engineer — JobPulse Project
+Author
+
+P Yogesh Yadav
+Electronics & Communication Engineering Student
+Aspiring Data Engineer — JobPulse Project
 
 ---
 

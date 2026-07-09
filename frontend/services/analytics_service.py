@@ -1,12 +1,7 @@
 """
 analytics_service.py — Core analytics queries for JobPulse dashboard.
 
-All queries verified against actual schema:
-  jobs: job_id, job_title, company_name, location_raw, salary_min, salary_max,
-        salary_currency, is_remote, work_arrangement, posted_date, created_at
-  dim_skill, bridge_job_skill, fact_jobs, dim_company, dim_location, dim_date
-  pipeline_runs: run_id, data_source_id, status, started_at, completed_at, pipeline_version
-  data_sources: data_source_id, source_name, display_name, is_active
+Queries rewritten for the normalized 3NF PostgreSQL warehouse schema.
 """
 import pandas as pd
 import streamlit as st
@@ -16,22 +11,16 @@ from frontend.services.database_service import fetch_data
 
 @st.cache_data(ttl=300)
 def get_home_kpis() -> dict:
-    """Aggregate top-level KPIs from the jobs operational table."""
+    """Aggregate top-level KPIs from the normalized schema."""
     query = """
         SELECT
-            COUNT(*)                                                AS total_jobs,
-            COUNT(DISTINCT company_name)
-                FILTER (WHERE company_name IS NOT NULL)            AS total_companies,
-            COUNT(DISTINCT location_raw)
-                FILTER (WHERE location_raw IS NOT NULL)            AS total_locations,
-            COUNT(DISTINCT sk_skill_id)                            AS total_skills,
-            AVG((salary_min + salary_max) / 2.0)
-                FILTER (WHERE salary_min IS NOT NULL
-                          AND salary_max IS NOT NULL)              AS avg_salary,
-            COUNT(*) FILTER (WHERE is_remote = TRUE)               AS remote_jobs,
-            COUNT(*) FILTER (WHERE is_active = TRUE)               AS active_jobs
-        FROM jobs
-        LEFT JOIN bridge_job_skill bjs ON bjs.sk_fact_job_id = jobs.job_id
+            (SELECT COUNT(*) FROM jobs) AS total_jobs,
+            (SELECT COUNT(*) FROM companies) AS total_companies,
+            (SELECT COUNT(*) FROM locations) AS total_locations,
+            (SELECT COUNT(*) FROM skills) AS total_skills,
+            (SELECT AVG(salary_midpoint) FROM salary_ranges) AS avg_salary,
+            (SELECT COUNT(*) FROM jobs WHERE is_remote = TRUE) AS remote_jobs,
+            (SELECT COUNT(*) FROM jobs WHERE is_active = TRUE) AS active_jobs
     """
     df = fetch_data(query)
     if not df.empty:
@@ -53,22 +42,25 @@ def get_home_kpis() -> dict:
 
 @st.cache_data(ttl=300)
 def get_live_jobs(limit: int = 100) -> pd.DataFrame:
-    """Return latest job listings ordered by posting date."""
+    """Return latest job listings ordered by posting date using normalized schema."""
     query = """
         SELECT
-            job_title,
-            company_name,
-            location_raw           AS location_name,
-            is_remote,
-            work_arrangement,
-            salary_min,
-            salary_max,
-            salary_currency,
-            posted_date,
-            posting_url
-        FROM jobs
-        WHERE is_active = TRUE
-        ORDER BY COALESCE(posted_date, created_at::date) DESC NULLS LAST
+            j.job_title,
+            c.company_name,
+            COALESCE(l.city || ', ' || l.state_code, l.country_name, 'Unknown') AS location_name,
+            j.is_remote,
+            j.work_arrangement,
+            sr.salary_min,
+            sr.salary_max,
+            sr.currency_code AS salary_currency,
+            j.posted_date,
+            j.posting_url
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.company_id
+        LEFT JOIN locations l ON j.location_id = l.location_id
+        LEFT JOIN salary_ranges sr ON j.job_id = sr.job_id
+        WHERE j.is_active = TRUE
+        ORDER BY COALESCE(j.posted_date, j.created_at::date) DESC NULLS LAST
         LIMIT :limit
     """
     return fetch_data(query, {"limit": limit})
@@ -76,14 +68,14 @@ def get_live_jobs(limit: int = 100) -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def get_top_skills(limit: int = 30) -> pd.DataFrame:
-    """Return the most demanded skills from bridge_job_skill + dim_skill."""
+    """Return the most demanded skills from job_skills + skills tables."""
     query = """
         SELECT
             s.skill_name,
             s.skill_category,
-            COUNT(b.sk_fact_job_id) AS job_count
-        FROM bridge_job_skill b
-        JOIN dim_skill s ON b.sk_skill_id = s.sk_skill_id
+            COUNT(js.job_id) AS job_count
+        FROM job_skills js
+        JOIN skills s ON js.skill_id = s.skill_id
         GROUP BY s.skill_name, s.skill_category
         ORDER BY job_count DESC
         LIMIT :limit
@@ -96,16 +88,15 @@ def get_company_hiring(limit: int = 25) -> pd.DataFrame:
     """Return companies ranked by number of active job postings."""
     query = """
         SELECT
-            company_name,
-            COUNT(*)              AS active_postings,
-            COUNT(*) FILTER (WHERE is_remote = TRUE) AS remote_roles,
-            AVG((salary_min + salary_max) / 2.0)
-                FILTER (WHERE salary_min IS NOT NULL AND salary_max IS NOT NULL)
-                                  AS avg_salary
-        FROM jobs
-        WHERE company_name IS NOT NULL
-          AND is_active = TRUE
-        GROUP BY company_name
+            c.company_name,
+            COUNT(j.job_id) AS active_postings,
+            COUNT(j.job_id) FILTER (WHERE j.is_remote = TRUE) AS remote_roles,
+            AVG(sr.salary_midpoint) AS avg_salary
+        FROM companies c
+        JOIN jobs j ON c.company_id = j.company_id
+        LEFT JOIN salary_ranges sr ON j.job_id = sr.job_id
+        WHERE j.is_active = TRUE
+        GROUP BY c.company_name
         ORDER BY active_postings DESC
         LIMIT :limit
     """
@@ -117,22 +108,22 @@ def get_salary_by_role(limit: int = 20) -> pd.DataFrame:
     """Return salary benchmarks aggregated by job title."""
     query = """
         SELECT
-            job_title                                               AS role,
-            job_title,
-            COUNT(*)                                               AS total_jobs,
-            ROUND(AVG(salary_min)::numeric, 0)                    AS avg_salary_min,
-            ROUND(AVG(salary_max)::numeric, 0)                    AS avg_salary_max,
-            ROUND(AVG((salary_min + salary_max) / 2.0)::numeric, 0)
-                                                                   AS avg_salary_midpoint,
-            ROUND(MIN(salary_min)::numeric, 0)                    AS lowest_salary,
-            ROUND(MAX(salary_max)::numeric, 0)                    AS highest_salary,
-            MAX(salary_currency)                                   AS salary_currency
-        FROM jobs
-        WHERE salary_min IS NOT NULL
-          AND salary_max IS NOT NULL
-          AND salary_min > 0
-        GROUP BY job_title
-        HAVING COUNT(*) > 1
+            j.canonical_title AS role,
+            j.job_title,
+            COUNT(j.job_id) AS total_jobs,
+            ROUND(AVG(sr.salary_min)::numeric, 0) AS avg_salary_min,
+            ROUND(AVG(sr.salary_max)::numeric, 0) AS avg_salary_max,
+            ROUND(AVG(sr.salary_midpoint)::numeric, 0) AS avg_salary_midpoint,
+            ROUND(MIN(sr.salary_min)::numeric, 0) AS lowest_salary,
+            ROUND(MAX(sr.salary_max)::numeric, 0) AS highest_salary,
+            MAX(sr.currency_code) AS salary_currency
+        FROM jobs j
+        JOIN salary_ranges sr ON j.job_id = sr.job_id
+        WHERE sr.salary_min IS NOT NULL
+          AND sr.salary_max IS NOT NULL
+          AND sr.salary_min > 0
+        GROUP BY j.canonical_title, j.job_title
+        HAVING COUNT(j.job_id) > 1
         ORDER BY total_jobs DESC
         LIMIT :limit
     """
@@ -141,25 +132,21 @@ def get_salary_by_role(limit: int = 20) -> pd.DataFrame:
 
 @st.cache_data(ttl=300)
 def get_pipeline_health() -> pd.DataFrame:
-    """
-    Return pipeline execution history from the actual pipeline_runs schema.
-    Columns: run_id, data_source_id, status, started_at, completed_at, pipeline_version
-    """
+    """Return pipeline execution history from the pipeline_runs and data_sources schema."""
     query = """
         SELECT
-            ds.display_name                                         AS source_name,
-            ds.source_name                                         AS source_key,
-            COUNT(pr.run_id)                                       AS total_runs,
+            ds.display_name AS source_name,
+            ds.source_name AS source_key,
+            COUNT(pr.run_id) AS total_runs,
             COUNT(pr.run_id) FILTER (WHERE UPPER(pr.status) = 'SUCCESS') AS success_runs,
             COUNT(pr.run_id) FILTER (WHERE UPPER(pr.status) = 'FAILED')  AS failed_runs,
-            COUNT(pr.run_id) FILTER (WHERE UPPER(pr.status) NOT IN ('SUCCESS','FAILED'))
-                                                                          AS other_runs,
+            COUNT(pr.run_id) FILTER (WHERE UPPER(pr.status) NOT IN ('SUCCESS','FAILED')) AS other_runs,
             ROUND(
                 COUNT(pr.run_id) FILTER (WHERE UPPER(pr.status) = 'SUCCESS') * 100.0
                 / NULLIF(COUNT(pr.run_id), 0), 1
-            )                                                              AS success_rate_pct,
-            MAX(pr.completed_at)                                   AS last_run_completed,
-            MAX(pr.pipeline_version)                               AS latest_version
+            ) AS success_rate_pct,
+            MAX(pr.completed_at) AS last_run_completed,
+            MAX(pr.pipeline_version) AS latest_version
         FROM data_sources ds
         LEFT JOIN pipeline_runs pr ON pr.data_source_id = ds.data_source_id
         GROUP BY ds.data_source_id, ds.display_name, ds.source_name
@@ -173,8 +160,8 @@ def get_jobs_over_time() -> pd.DataFrame:
     """Return daily job posting counts for trend charts."""
     query = """
         SELECT
-            posted_date      AS date,
-            COUNT(*)         AS job_count,
+            posted_date AS date,
+            COUNT(*) AS job_count,
             COUNT(*) FILTER (WHERE is_remote = TRUE) AS remote_count
         FROM jobs
         WHERE posted_date IS NOT NULL
@@ -191,7 +178,7 @@ def get_work_arrangement_breakdown() -> pd.DataFrame:
     query = """
         SELECT
             COALESCE(work_arrangement, 'Unspecified') AS work_type,
-            COUNT(*)                                   AS job_count
+            COUNT(*) AS job_count
         FROM jobs
         GROUP BY work_arrangement
         ORDER BY job_count DESC

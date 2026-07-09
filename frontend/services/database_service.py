@@ -49,6 +49,17 @@ def fetch_data(query: str, params: dict | None = None) -> pd.DataFrame:
     Returns an empty DataFrame on failure. Errors are logged but
     never raised directly — callers must check df.empty.
     """
+    import time
+    import logging
+    logger = logging.getLogger("database_service")
+    if not logger.hasHandlers():
+        handler = logging.StreamHandler(sys.stderr)
+        formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(name)s | %(message)s')
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
+
+    t0 = time.time()
     try:
         engine = get_db_engine()
         with engine.connect() as conn:
@@ -58,11 +69,22 @@ def fetch_data(query: str, params: dict | None = None) -> pd.DataFrame:
                 result = conn.execute(text(query))
             rows = result.fetchall()
             cols = list(result.keys())
-            return pd.DataFrame(rows, columns=cols)
+            
+            df = pd.DataFrame(rows, columns=cols)
+            
+            duration_ms = round((time.time() - t0) * 1000, 2)
+            row_count = len(df)
+            
+            if row_count == 0:
+                logger.warning(f"Query returned 0 rows in {duration_ms}ms. Query summary: {query[:100].strip()}...")
+            else:
+                logger.info(f"Executed query in {duration_ms}ms. Rows returned: {row_count}")
+                
+            return df
     except Exception as exc:
-        # Log to stderr (visible in terminal), but don't pollute Streamlit UI
-        print(f"[database_service] Query failed: {exc}", file=sys.stderr)
-        print(traceback.format_exc(), file=sys.stderr)
+        duration_ms = round((time.time() - t0) * 1000, 2)
+        logger.error(f"Query failed after {duration_ms}ms: {exc}\nQuery context:\n{query}\nParams: {params}")
+        logger.error(traceback.format_exc())
         return pd.DataFrame()
 
 

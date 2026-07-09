@@ -381,7 +381,7 @@ This project is licensed under the MIT License — see [LICENSE](LICENSE) for de
 
 ## Author
 
-**[Your Name]**
+**P Yogesh Yadav**
 Senior Data Engineer — JobPulse Project
 
 ---
@@ -407,7 +407,8 @@ All rules are configurable in src/jobpulse/validation/config.py, allowing you to
 ### Reporting
 Validation yields:
 - A ValidationReport dataclass embedded inside the ETLReport.
-- A polished HTML file generated to eports/validation_report.html.
+- A polished HTML file generated to 
+eports/validation_report.html.
 - Historical trend logging to data/validation_history.csv.
 
 ---
